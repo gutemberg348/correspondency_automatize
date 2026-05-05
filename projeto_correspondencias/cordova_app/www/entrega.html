@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Entrega de Correspondencia</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="screen">
+  <header class="page-header">
+    <a class="back-link" href="index.html" aria-label="Voltar">&lsaquo;</a>
+    <h1>Entrega de Correspondencia</h1>
+  </header>
+
+  <main class="page-content">
+    <label class="search-field">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>
+      <input id="search" type="search" placeholder="Pesquisar por unidade ou identificacao" autocomplete="off">
+    </label>
+
+    <section id="deliveryList" class="list" aria-live="polite"></section>
+  </main>
+
+  <div id="deliveryModal" class="modal" hidden>
+    <form id="deliveryForm" class="modal-card">
+      <button class="modal-close" type="button" aria-label="Fechar">&times;</button>
+      <h2>Confirmar entrega</h2>
+      <p id="selectedPackage" class="muted"></p>
+      <label for="receiver">Retirado por *</label>
+      <input id="receiver" name="receiver" type="text" required placeholder="Nome de quem retirou">
+      <label>Assinatura *</label>
+      <canvas id="signatureCanvas" width="640" height="240"></canvas>
+      <div class="modal-actions">
+        <button type="button" class="ghost-button" id="clearSignature">Limpar</button>
+        <button type="submit" class="primary-button">Entregar</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="cordova.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/signature.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    if (AppAuth.requireLogin()) {
+      var packages = [];
+      var selectedId = null;
+      var list = document.getElementById('deliveryList');
+      var search = document.getElementById('search');
+      var modal = document.getElementById('deliveryModal');
+      var form = document.getElementById('deliveryForm');
+      var signature = SignaturePad.create(document.getElementById('signatureCanvas'));
+
+      function render() {
+        var term = search.value.toLowerCase();
+        var filtered = packages.filter(function (item) {
+          return item.status === 'pendente' && (item.unit + ' ' + item.identification).toLowerCase().indexOf(term) >= 0;
+        });
+        list.innerHTML = filtered.map(function (item) {
+          return '<button class="package-card" type="button" data-id="' + item.id + '">' +
+            '<strong>' + AppApi.escape(item.unit) + ' - ' + AppApi.escape(item.unit_short || item.unit) + '</strong>' +
+            '<span>' + AppApi.escape(item.identification) + '</span>' +
+            '<small>' + AppApi.formatDate(item.received_at, false) + '</small>' +
+          '</button>';
+        }).join('');
+      }
+
+      function load() {
+        AppApi.listPackages().then(function (items) {
+          packages = items;
+          render();
+        });
+      }
+
+      list.addEventListener('click', function (event) {
+        var card = event.target.closest('.package-card');
+        if (!card) return;
+        selectedId = card.dataset.id;
+        var item = packages.find(function (entry) { return String(entry.id) === String(selectedId); });
+        document.getElementById('selectedPackage').textContent = item.unit + ' - ' + item.identification;
+        form.reset();
+        signature.clear();
+        modal.hidden = false;
+        SignaturePad.resize(document.getElementById('signatureCanvas'), signature);
+      });
+
+      document.querySelector('.modal-close').addEventListener('click', function () {
+        modal.hidden = true;
+      });
+
+      document.getElementById('clearSignature').addEventListener('click', function () {
+        signature.clear();
+      });
+
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        if (signature.isEmpty()) return;
+        AppApi.deliverPackage(selectedId, {
+          receiver: form.receiver.value.trim(),
+          signature: signature.toDataURL()
+        }).then(function () {
+          modal.hidden = true;
+          load();
+        });
+      });
+
+      search.addEventListener('input', render);
+      load();
+    }
+  </script>
+</body>
+</html>

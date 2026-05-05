@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gestao de Correspondencias</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="screen home-screen">
+  <main class="home-wrap">
+    <div class="session-bar">
+      <span id="sessionName">App mobile</span>
+      <button id="logoutButton" type="button">Sair</button>
+    </div>
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 64 64"><path d="M12 32c12-12 28-12 40 0-12 12-28 12-40 0Z"/><path d="M46 22 18 42"/></svg>
+    </div>
+    <h1>Gestao de Correspondencias</h1>
+    <p class="pending-count"><span id="pendingCount">0</span> correspondencia(s) pendente(s)</p>
+
+    <nav class="home-grid" aria-label="Menu principal">
+      <a class="home-card" href="cadastro.html">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="m12 22 20-10 20 10-20 10-20-10Z"/><path d="M12 22v22l20 10 20-10V22"/><path d="M32 32v22"/></svg>
+        <span>Cadastro de<br>Correspondencia</span>
+      </a>
+      <a class="home-card" href="entrega.html">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="22" cy="18" r="6"/><circle cx="42" cy="24" r="6"/><path d="M15 48c5-12 17-16 28-11l7 3"/><path d="M29 35 19 29"/><path d="m45 44 8-12"/></svg>
+        <span>Entrega de<br>Correspondencia</span>
+      </a>
+      <a class="home-card" href="historico.html">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 20a22 22 0 1 1-2 26"/><path d="M16 20H6v-10"/><path d="M32 20v14l10 6"/></svg>
+        <span>Historico</span>
+      </a>
+    </nav>
+
+    <p class="blessing">Jesus te ama!</p>
+  </main>
+  <script src="cordova.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    if (AppAuth.requireLogin()) {
+      var session = AppAuth.session();
+      if (session && session.user) {
+        document.getElementById('sessionName').textContent = session.user.name || session.user.username;
+      }
+      document.getElementById('logoutButton').addEventListener('click', function () {
+        AppAuth.logout();
+      });
+      AppApi.listPackages().then(function (items) {
+        document.getElementById('pendingCount').textContent = items.filter(function (item) {
+          return item.status === 'pendente';
+        }).length;
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget id="br.com.condominio.correspondencias" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+  <name>Correspondencias</name>
+  <description>Gestao de correspondencias do condominio.</description>
+  <author email="gutosamuel4@gmail.com" href="https://techcodesoftwares.com">Condominio</author>
+  <content src="login.html" />
+  <access origin="*" />
+  <allow-navigation href="http://*/*" />
+  <allow-navigation href="https://*/*" />
+  <allow-intent href="http://*/*" />
+  <allow-intent href="https://*/*" />
+  <plugin name="cordova-plugin-device" spec="^2.1.0" />
+  <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application">
+    <application android:usesCleartextTraffic="true" />
+  </edit-config>
+  <preference name="Orientation" value="portrait" />
+  <preference name="StatusBarOverlaysWebView" value="false" />
+</widget>

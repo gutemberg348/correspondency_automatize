@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cadastro de Correspondencia</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="screen">
+  <header class="page-header">
+    <a class="back-link" href="index.html" aria-label="Voltar">&lsaquo;</a>
+    <h1>Cadastro de Correspondencia</h1>
+  </header>
+
+  <main class="page-content">
+    <form id="packageForm" class="panel">
+      <h2>Nova Correspondencia</h2>
+
+      <label for="unit">Unidade *</label>
+      <input id="unit" name="unit" type="text" required placeholder="Ex: 101, Bloco B - Apto 302" autocomplete="off">
+
+      <label for="identification">Identificacao *</label>
+      <textarea id="identification" name="identification" required placeholder="Numero da nota fiscal, codigo de rastreio ou descricao"></textarea>
+
+      <button class="primary-button" type="submit">Registrar Correspondencia</button>
+      <p id="formMessage" class="form-message" role="status"></p>
+    </form>
+  </main>
+
+  <script src="cordova.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    if (AppAuth.requireLogin()) {
+      document.getElementById('packageForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+        var form = event.currentTarget;
+        var message = document.getElementById('formMessage');
+        AppApi.createPackage({
+          unit: form.unit.value.trim(),
+          identification: form.identification.value.trim()
+        }).then(function () {
+          message.textContent = 'Correspondencia registrada.';
+          form.reset();
+        }).catch(function () {
+          message.textContent = 'Nao foi possivel registrar.';
+        });
+      });
+    }
+  </script>
+</body>
+</html>

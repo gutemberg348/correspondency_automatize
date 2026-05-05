@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Historico de Correspondencias</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="screen">
+  <header class="page-header">
+    <a class="back-link" href="index.html" aria-label="Voltar">&lsaquo;</a>
+    <h1>Historico de Correspondencias</h1>
+  </header>
+
+  <main class="page-content">
+    <label class="search-field">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>
+      <input id="search" type="search" placeholder="Pesquisar por unidade ou identificacao" autocomplete="off">
+    </label>
+
+    <section id="historyList" class="list history-list" aria-live="polite"></section>
+  </main>
+
+  <script src="cordova.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    if (AppAuth.requireLogin()) {
+      var packages = [];
+      var list = document.getElementById('historyList');
+      var search = document.getElementById('search');
+
+      function statusLabel(status) {
+        return status === 'entregue' ? 'Entregue' : 'Pendente';
+      }
+
+      function render() {
+        var term = search.value.toLowerCase();
+        var filtered = packages.filter(function (item) {
+          var matchesStatus = item.status === 'entregue';
+          var matchesSearch = (item.unit + ' ' + item.identification + ' ' + (item.receiver || '')).toLowerCase().indexOf(term) >= 0;
+          return matchesStatus && matchesSearch;
+        });
+        list.innerHTML = filtered.length ? filtered.map(function (item) {
+          return '<article class="history-card">' +
+            '<div class="history-top"><strong>' + AppApi.escape(item.unit) + '</strong><span class="badge ' + item.status + '">' + statusLabel(item.status) + '</span></div>' +
+            '<p>Identificacao: ' + AppApi.escape(item.identification) + '</p>' +
+            '<p>Recebido em: ' + AppApi.formatDate(item.received_at, true) + '</p>' +
+            '<em>A opcao de excluir ficara disponivel 2 meses apos o recebimento.</em>' +
+            '<div class="delivery-info"><p>Retirado por: <strong>' + AppApi.escape(item.receiver || '') + '</strong></p><p>Entregue em: ' + AppApi.formatDate(item.delivered_at, true) + '</p>' + (item.signature ? '<p>Assinatura:</p><img src="' + item.signature + '" alt="Assinatura">' : '') + '</div>' +
+          '</article>';
+        }).join('') : '<p class="empty-state">Nenhuma entrega encontrada.</p>';
+      }
+
+      AppApi.listPackages().then(function (items) {
+        packages = items;
+        render();
+      });
+      search.addEventListener('input', render);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Login do App</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="screen login-mobile-screen">
+  <main class="mobile-login">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 64 64"><path d="M12 32c12-12 28-12 40 0-12 12-28 12-40 0Z"/><path d="M46 22 18 42"/></svg>
+    </div>
+    <h1>Gestao de Correspondencias</h1>
+    <p class="login-subtitle">Acesso liberado pelo painel administrativo.</p>
+    <form id="mobileLoginForm" class="panel login-panel">
+      <label for="username">Login</label>
+      <input id="username" name="username" autocomplete="username" required>
+      <label for="password">Senha</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button class="primary-button" type="submit">Entrar</button>
+      <p id="loginMessage" class="form-message" role="status"></p>
+    </form>
+    <div class="login-meta">Jesus te ama</div>
+  </main>
+
+  <script src="cordova.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.getElementById('mobileLoginForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      var form = event.currentTarget;
+      var message = document.getElementById('loginMessage');
+      message.textContent = '';
+      AppAuth.login({
+        username: form.username.value.trim(),
+        password: form.password.value.trim()
+      }).then(function () {
+        window.location.href = 'index.html';
+      }).catch(function (error) {
+        if (error.code === 'NETWORK_ERROR') {
+          message.textContent = 'Servidor indisponivel. Verifique se o backend esta rodando.';
+          return;
+        }
+
+        if (error.code === 'DEVICE_PENDING') {
+          message.textContent = 'Celular aguardando liberacao do administrador.';
+          return;
+        }
+
+        if (error.code === 'DEVICE_BLOCKED') {
+          message.textContent = 'Celular bloqueado para este login.';
+          return;
+        }
+
+        message.textContent = 'Login invalido ou acesso vencido.';
+      });
+    });
+  </script>
+</body>
+</html>

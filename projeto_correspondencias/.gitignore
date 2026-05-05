@@ -1,0 +1,46 @@
+# Local environment and secrets
+backend/.env
+.env
+.env.*
+!.env.example
+!backend/.env.example
+
+# Backend runtime data
+backend/storage/*
+!backend/storage/.gitignore
+
+# PHP/runtime logs and temporary files
+*.log
+*.tmp
+*.cache
+
+# Cordova dependencies and generated platforms
+cordova_app/node_modules/
+cordova_app/platforms/
+cordova_app/plugins/
+cordova_app/.build-tools/
+cordova_app/.gradle/
+cordova_app/www/cordova.js
+
+# Android build outputs and local machine config
+cordova_app/**/*.apk
+cordova_app/**/*.aab
+cordova_app/**/local.properties
+cordova_app/**/build/
+cordova_app/**/.gradle/
+
+# Signing keys and certificates
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+*.crt
+
+# IDE and OS noise
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+Desktop.ini
