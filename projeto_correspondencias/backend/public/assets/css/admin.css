@@ -603,8 +603,23 @@ tr:hover td {
   align-items: center;
 }
 
+.password-edit {
+  display: grid;
+  min-width: 180px;
+  gap: 8px;
+}
+
+.password-edit small {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+}
+
 .inline-edit input,
-.inline-edit select {
+.inline-edit select,
+.password-edit input {
   min-height: 36px;
   padding: 0 10px;
   font-size: 13px;

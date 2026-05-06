@@ -15,8 +15,9 @@
   <main class="page-content">
     <label class="search-field">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>
-      <input id="search" type="search" placeholder="Pesquisar por unidade ou identificacao" autocomplete="off">
+      <input id="search" type="search" placeholder="Pesquisar por data, nome, unidade ou identificacao" autocomplete="off">
     </label>
+    <p class="page-blessing">Jesus te ama</p>
 
     <section id="historyList" class="list history-list" aria-live="polite"></section>
   </main>
@@ -34,11 +35,46 @@
         return status === 'entregue' ? 'Entregue' : 'Pendente';
       }
 
+      function normalize(value) {
+        return String(value || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+      }
+
+      function dateText(value) {
+        if (!value) return '';
+        var date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+
+        var year = date.getFullYear();
+        var month = String(date.getMonth() + 1).padStart(2, '0');
+        var day = String(date.getDate()).padStart(2, '0');
+
+        return [
+          value,
+          day + '/' + month + '/' + year,
+          year + '-' + month + '-' + day,
+          AppApi.formatDate(value, true)
+        ].join(' ');
+      }
+
+      function searchableText(item) {
+        return normalize([
+          item.unit,
+          item.unit_short,
+          item.identification,
+          item.receiver,
+          dateText(item.received_at),
+          dateText(item.delivered_at)
+        ].join(' '));
+      }
+
       function render() {
-        var term = search.value.toLowerCase();
+        var term = normalize(search.value);
         var filtered = packages.filter(function (item) {
           var matchesStatus = item.status === 'entregue';
-          var matchesSearch = (item.unit + ' ' + item.identification + ' ' + (item.receiver || '')).toLowerCase().indexOf(term) >= 0;
+          var matchesSearch = searchableText(item).indexOf(term) >= 0;
           return matchesStatus && matchesSearch;
         });
         list.innerHTML = filtered.length ? filtered.map(function (item) {

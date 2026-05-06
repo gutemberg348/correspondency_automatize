@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 728 644" role="img" aria-labelledby="title">
+  <title>Logo peixe</title>
+  <defs>
+    <radialGradient id="light" cx="46%" cy="36%" r="72%">
+      <stop offset="0" stop-color="#0b67b9"/>
+      <stop offset=".62" stop-color="#07539b"/>
+      <stop offset="1" stop-color="#044483"/>
+    </radialGradient>
+    <linearGradient id="shade" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#075ead"/>
+      <stop offset="1" stop-color="#033b78"/>
+    </linearGradient>
+    <filter id="markShadow" x="-20%" y="-40%" width="140%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#003163" flood-opacity=".42"/>
+    </filter>
+  </defs>
+
+  <rect width="728" height="644" fill="url(#shade)"/>
+  <rect width="728" height="644" fill="url(#light)" opacity=".9"/>
+  <path d="M0 0h728v644H0z" fill="#07549b" opacity=".28"/>
+
+  <g filter="url(#markShadow)">
+    <path d="M180 360C280 260 430 260 534 360C430 460 280 460 180 360Z"
+      fill="none" stroke="#fff" stroke-width="33" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M534 360L608 286"
+      fill="none" stroke="#fff" stroke-width="33" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M534 360L608 434"
+      fill="none" stroke="#fff" stroke-width="33" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

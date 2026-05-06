@@ -84,7 +84,7 @@ require __DIR__ . '/layouts/header.php';
             <tr>
               <th>Nome</th>
               <th>Login</th>
-              <th>Senha</th>
+              <th>Senha atual / nova</th>
               <th>Validade</th>
               <th>Novo prazo</th>
               <th>Status</th>

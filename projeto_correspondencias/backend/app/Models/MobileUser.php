@@ -23,7 +23,7 @@ class MobileUser
         return array_map([$this, 'normalizePublicUser'], $stmt->fetchAll());
     }
 
-    public function create(array $data): array
+    public function create(array $data, ?int $adminId = null): array
     {
         $amount = max(1, (int) ($data['validity_amount'] ?? 1));
         $unit = ($data['validity_unit'] ?? 'months') === 'days' ? 'days' : 'months';
@@ -42,9 +42,9 @@ class MobileUser
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
             'INSERT INTO mobile_users
-                (name, username, password_hash, validity_amount, validity_unit, expires_at, active)
+                (name, username, password_hash, validity_amount, validity_unit, expires_at, active, created_by_admin_id)
              VALUES
-                (:name, :username, :password_hash, :validity_amount, :validity_unit, :expires_at, 1)'
+                (:name, :username, :password_hash, :validity_amount, :validity_unit, :expires_at, 1, :created_by_admin_id)'
         );
         $stmt->execute([
             'name' => $name !== '' ? $name : $username,
@@ -53,6 +53,7 @@ class MobileUser
             'validity_amount' => $amount,
             'validity_unit' => $unit,
             'expires_at' => $this->expiresAt($amount, $unit),
+            'created_by_admin_id' => $adminId && $adminId > 0 ? $adminId : null,
         ]);
 
         return $this->findPublic((int) $pdo->lastInsertId());
@@ -114,6 +115,15 @@ class MobileUser
             $params['expires_at'] = $this->expiresAt($amount, $unit);
             $params['validity_amount'] = $amount;
             $params['validity_unit'] = $unit;
+        }
+
+        if (array_key_exists('password', $data)) {
+            $password = trim((string) $data['password']);
+
+            if ($password !== '') {
+                $updates[] = 'password_hash = :password_hash';
+                $params['password_hash'] = $password;
+            }
         }
 
         if (empty($updates)) {

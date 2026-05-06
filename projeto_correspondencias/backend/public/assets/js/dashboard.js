@@ -93,7 +93,10 @@
       return '<tr>' +
         '<td>' + escape(user.name) + '</td>' +
         '<td>' + escape(user.username) + '</td>' +
-        '<td>' + escape(user.password) + '</td>' +
+        '<td><div class="password-edit">' +
+          '<small>Atual: ' + escape(user.password) + '</small>' +
+          '<input type="text" value="" placeholder="Nova senha" autocomplete="new-password" aria-label="Nova senha">' +
+        '</div></td>' +
         '<td>' + formatDate(user.expires_at) + '</td>' +
         '<td><div class="inline-edit">' +
           '<input type="number" min="1" value="' + escape(user.validity_amount) + '" aria-label="Quantidade">' +
@@ -193,12 +196,20 @@
     }
 
     if (saveButton) {
-      var edit = saveButton.closest('tr').querySelector('.inline-edit');
-      AdminApi.updateMobileUser(saveButton.dataset.id, {
+      var row = saveButton.closest('tr');
+      var edit = row.querySelector('.inline-edit');
+      var passwordInput = row.querySelector('.password-edit input');
+      var payload = {
         validity_amount: edit.querySelector('input').value,
         validity_unit: edit.querySelector('select').value
-      }).then(function () {
-        mobileUserMessage.textContent = 'Tempo do usuario atualizado.';
+      };
+
+      if (passwordInput.value.trim() !== '') {
+        payload.password = passwordInput.value.trim();
+      }
+
+      AdminApi.updateMobileUser(saveButton.dataset.id, payload).then(function () {
+        mobileUserMessage.textContent = payload.password ? 'Usuario e senha atualizados.' : 'Tempo do usuario atualizado.';
         load();
       }).catch(function () {
         mobileUserMessage.textContent = 'Nao foi possivel atualizar o usuario.';

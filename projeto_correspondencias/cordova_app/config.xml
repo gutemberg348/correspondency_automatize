@@ -10,6 +10,14 @@
   <allow-intent href="http://*/*" />
   <allow-intent href="https://*/*" />
   <plugin name="cordova-plugin-device" spec="^2.1.0" />
+  <platform name="android">
+    <icon density="ldpi" src="res/icon/android/ldpi.png" foreground="res/icon/android/ldpi-foreground.png" background="res/icon/android/ldpi-background.png" monochrome="res/icon/android/ldpi-monochrome.png" />
+    <icon density="mdpi" src="res/icon/android/mdpi.png" foreground="res/icon/android/mdpi-foreground.png" background="res/icon/android/mdpi-background.png" monochrome="res/icon/android/mdpi-monochrome.png" />
+    <icon density="hdpi" src="res/icon/android/hdpi.png" foreground="res/icon/android/hdpi-foreground.png" background="res/icon/android/hdpi-background.png" monochrome="res/icon/android/hdpi-monochrome.png" />
+    <icon density="xhdpi" src="res/icon/android/xhdpi.png" foreground="res/icon/android/xhdpi-foreground.png" background="res/icon/android/xhdpi-background.png" monochrome="res/icon/android/xhdpi-monochrome.png" />
+    <icon density="xxhdpi" src="res/icon/android/xxhdpi.png" foreground="res/icon/android/xxhdpi-foreground.png" background="res/icon/android/xxhdpi-background.png" monochrome="res/icon/android/xxhdpi-monochrome.png" />
+    <icon density="xxxhdpi" src="res/icon/android/xxxhdpi.png" foreground="res/icon/android/xxxhdpi-foreground.png" background="res/icon/android/xxxhdpi-background.png" monochrome="res/icon/android/xxxhdpi-monochrome.png" />
+  </platform>
   <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application">
     <application android:usesCleartextTraffic="true" />
   </edit-config>

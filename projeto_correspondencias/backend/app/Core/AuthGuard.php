@@ -4,24 +4,29 @@ namespace App\Core;
 
 class AuthGuard
 {
-    public static function requireAdminSession(): void
+    public static function requireAdminSession(): array
     {
         if (self::hasAdminSession()) {
-            return;
+            return self::adminActor();
         }
 
         self::jsonUnauthorized('Sessao admin obrigatoria.');
     }
 
-    public static function requireAdminSessionOrMobileJwt(): void
+    public static function requireAdminSessionOrMobileJwt(): array
     {
-        if (self::hasAdminSession()) {
-            return;
+        $token = self::bearerToken();
+        if ($token !== null) {
+            $payload = self::mobilePayloadFromToken($token);
+            if ($payload !== null) {
+                return self::mobileActor($payload);
+            }
+
+            self::jsonUnauthorized('JWT mobile invalido.');
         }
 
-        $payload = self::mobilePayload();
-        if ($payload !== null) {
-            return;
+        if (self::hasAdminSession()) {
+            return self::adminActor();
         }
 
         self::jsonUnauthorized('JWT mobile obrigatorio.');
@@ -32,9 +37,27 @@ class AuthGuard
         return isset($_SESSION['admin_id']);
     }
 
-    private static function mobilePayload(): ?array
+    private static function adminActor(): array
     {
-        $token = self::bearerToken();
+        return [
+            'type' => 'admin',
+            'id' => (int) ($_SESSION['admin_id'] ?? 0),
+            'username' => (string) ($_SESSION['admin_username'] ?? ''),
+        ];
+    }
+
+    private static function mobileActor(array $payload): array
+    {
+        return [
+            'type' => 'mobile_user',
+            'id' => (int) ($payload['uid'] ?? 0),
+            'username' => (string) ($payload['sub'] ?? ''),
+            'device_id' => (int) ($payload['did'] ?? 0),
+        ];
+    }
+
+    private static function mobilePayloadFromToken(string $token): ?array
+    {
         $payload = JwtHandler::decode($token);
 
         if (($payload['type'] ?? '') !== 'mobile') {

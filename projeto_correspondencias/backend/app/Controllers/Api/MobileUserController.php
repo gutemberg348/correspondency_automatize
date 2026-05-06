@@ -16,11 +16,11 @@ class MobileUserController
 
     public function store(): void
     {
-        AuthGuard::requireAdminSession();
+        $actor = AuthGuard::requireAdminSession();
         $data = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
 
         try {
-            $user = (new MobileUser())->create($data);
+            $user = (new MobileUser())->create($data, (int) ($actor['id'] ?? 0));
         } catch (InvalidArgumentException $exception) {
             $this->json(['error' => $exception->getMessage()], 422);
             return;

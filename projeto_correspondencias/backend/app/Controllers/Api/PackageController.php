@@ -9,23 +9,23 @@ class PackageController
 {
     public function index(): void
     {
-        AuthGuard::requireAdminSessionOrMobileJwt();
-        $this->json((new Package())->all());
+        $actor = AuthGuard::requireAdminSessionOrMobileJwt();
+        $this->json((new Package())->all($actor));
     }
 
     public function store(): void
     {
-        AuthGuard::requireAdminSessionOrMobileJwt();
+        $actor = AuthGuard::requireAdminSessionOrMobileJwt();
         $data = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
-        $package = (new Package())->create($data);
+        $package = (new Package())->create($data, $actor);
         $this->json($package, 201);
     }
 
     public function deliver(string $id): void
     {
-        AuthGuard::requireAdminSessionOrMobileJwt();
+        $actor = AuthGuard::requireAdminSessionOrMobileJwt();
         $data = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
-        $package = (new Package())->deliver($id, $data);
+        $package = (new Package())->deliver($id, $data, $actor);
 
         if (!$package) {
             $this->json(['error' => 'Correspondencia nao encontrada'], 404);
