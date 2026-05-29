@@ -44,6 +44,11 @@
 
   function formatDate(value) {
     if (!value) return '';
+    var match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+    if (match) {
+      return match[3] + '/' + match[2] + '/' + match[1] + ' as ' + match[4] + ':' + match[5];
+    }
+
     var date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleDateString('pt-BR') + ' as ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -127,12 +132,16 @@
       return '<tr>' +
         '<td>' + escape(device.user_name) + '<br><small>' + escape(device.username) + '</small></td>' +
         '<td>' + escape(device.device_label || '-') + '</td>' +
+        '<td><div class="device-phone-edit">' +
+          '<input class="device-phone-input" type="tel" value="' + escape(device.phone || '') + '" placeholder="Telefone" aria-label="Telefone">' +
+          '<button class="small-button save-device-phone" type="button" data-id="' + device.id + '">Salvar</button>' +
+        '</div></td>' +
         '<td>' + escape(device.platform || '-') + '</td>' +
         '<td>' + (formatDate(device.last_login_at || device.updated_at) || '-') + '</td>' +
         '<td><span class="status ' + status.className + '">' + status.label + '</span></td>' +
         '<td><div class="row-actions">' + allowButton + blockButton + deleteButton + '</div></td>' +
       '</tr>';
-    }).join('') : '<tr><td colspan="6">Nenhum dispositivo registrado ainda.</td></tr>';
+    }).join('') : '<tr><td colspan="7">Nenhum dispositivo registrado ainda.</td></tr>';
   }
 
   function load() {
@@ -228,13 +237,27 @@
   });
 
   deviceRows.addEventListener('click', function (event) {
+    var savePhoneButton = event.target.closest('.save-device-phone');
     var approveButton = event.target.closest('.approve-device');
     var blockButton = event.target.closest('.block-device');
     var deleteButton = event.target.closest('.delete-device');
 
-    if (!approveButton && !blockButton && !deleteButton) return;
+    if (!savePhoneButton && !approveButton && !blockButton && !deleteButton) return;
 
     deviceMessage.textContent = '';
+
+    if (savePhoneButton) {
+      var phoneInput = savePhoneButton.closest('tr').querySelector('.device-phone-input');
+      AdminApi.updateMobileDevice(savePhoneButton.dataset.id, {
+        phone: phoneInput.value.trim()
+      }).then(function () {
+        deviceMessage.textContent = 'Telefone do dispositivo salvo.';
+        load();
+      }).catch(function () {
+        deviceMessage.textContent = 'Nao foi possivel salvar o telefone.';
+      });
+      return;
+    }
 
     if (deleteButton) {
       if (confirm('Tem certeza que deseja excluir este dispositivo? O usuário precisará logar novamente para solicitar acesso.')) {

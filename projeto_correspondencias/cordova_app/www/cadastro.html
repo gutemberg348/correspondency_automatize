@@ -16,36 +16,158 @@
     <form id="packageForm" class="panel">
       <h2>Nova Correspondencia</h2>
 
-      <label for="unit">Unidade *</label>
-      <input id="unit" name="unit" type="text" required placeholder="Ex: 101, Bloco B - Apto 302" autocomplete="off">
+      <label for="unit">Unidade</label>
+      <input id="unit" name="unit" type="text" placeholder="Opcional: 101, Bloco B - Apto 302" autocomplete="off">
 
-      <label for="identification">Identificacao *</label>
+      <div class="field-heading">
+        <label for="identification">Descricao da encomenda *</label>
+        <button id="scanTextButton" class="scan-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2"/><path d="M17 4h2a1 1 0 0 1 1 1v2"/><path d="M20 17v2a1 1 0 0 1-1 1h-2"/><path d="M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M7 9h10"/><path d="M7 13h10"/><path d="M7 17h6"/></svg>
+          <span>Escanear texto</span>
+        </button>
+      </div>
       <textarea id="identification" name="identification" required placeholder="Numero da nota fiscal, codigo de rastreio ou descricao"></textarea>
+      <p id="scanMessage" class="scan-message" role="status"></p>
+
+      <label for="photo">Foto da correspondencia</label>
+      <input id="photo" name="photo" type="file" accept="image/*" capture="environment">
+      <div id="photoPreview" class="photo-preview" hidden>
+        <img id="photoPreviewImage" alt="Foto da correspondencia">
+        <button id="removePhoto" class="ghost-button" type="button">Remover foto</button>
+      </div>
 
       <button class="primary-button" type="submit">Registrar Correspondencia</button>
+      <div id="registeredPackageActions" class="post-submit-actions" hidden>
+        <button id="shareRegisteredPackage" class="share-package" type="button">Compartilhar PDF</button>
+      </div>
       <p id="formMessage" class="form-message" role="status"></p>
     </form>
-    <p class="page-blessing">Jesus te ama</p>
   </main>
 
   <script src="cordova.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/package-share.js"></script>
+  <script src="js/photo.js"></script>
+  <script src="js/ocr.js"></script>
   <script src="js/auth.js"></script>
   <script>
     if (AppAuth.requireLogin()) {
+      var photoData = '';
+      var photoLoading = false;
+      var photoInput = document.getElementById('photo');
+      var photoPreview = document.getElementById('photoPreview');
+      var photoPreviewImage = document.getElementById('photoPreviewImage');
+      var removePhoto = document.getElementById('removePhoto');
+      var scanTextButton = document.getElementById('scanTextButton');
+      var scanMessage = document.getElementById('scanMessage');
+      var identificationField = document.getElementById('identification');
+      var registeredPackage = null;
+      var registeredPackageActions = document.getElementById('registeredPackageActions');
+      var shareRegisteredPackage = document.getElementById('shareRegisteredPackage');
+
+      function clearPhoto() {
+        photoData = '';
+        photoInput.value = '';
+        photoPreview.hidden = true;
+        photoPreviewImage.removeAttribute('src');
+      }
+
+      photoInput.addEventListener('change', function () {
+        var file = photoInput.files && photoInput.files[0];
+        var message = document.getElementById('formMessage');
+        message.textContent = '';
+
+        if (!file) {
+          clearPhoto();
+          return;
+        }
+
+        photoLoading = true;
+        AppPhoto.resize(file).then(function (dataUrl) {
+          photoData = dataUrl;
+          photoPreviewImage.src = dataUrl;
+          photoPreview.hidden = false;
+        }).catch(function (error) {
+          clearPhoto();
+          message.textContent = error.message || 'Nao foi possivel carregar a foto.';
+        }).then(function () {
+          photoLoading = false;
+        });
+      });
+
+      removePhoto.addEventListener('click', clearPhoto);
+
+      function appendScannedText(text) {
+        var currentValue = identificationField.value.trim();
+        var nextValue = text.trim();
+
+        if (!nextValue) {
+          return;
+        }
+
+        identificationField.value = currentValue ? currentValue + '\n' + nextValue : nextValue;
+        identificationField.focus();
+        identificationField.selectionStart = identificationField.value.length;
+        identificationField.selectionEnd = identificationField.value.length;
+      }
+
+      scanTextButton.addEventListener('click', function () {
+        scanMessage.textContent = '';
+        scanTextButton.disabled = true;
+        scanTextButton.querySelector('span').textContent = 'Escaneando...';
+
+        AppOcr.scanText().then(function (text) {
+          appendScannedText(text);
+          scanMessage.textContent = text ? 'Texto adicionado na descricao.' : 'Nenhum texto encontrado.';
+        }).catch(function (error) {
+          scanMessage.textContent = error.message || 'Nao foi possivel escanear o texto.';
+        }).then(function () {
+          scanTextButton.disabled = false;
+          scanTextButton.querySelector('span').textContent = 'Escanear texto';
+        });
+      });
+
       document.getElementById('packageForm').addEventListener('submit', function (event) {
         event.preventDefault();
         var form = event.currentTarget;
         var message = document.getElementById('formMessage');
+
+        if (photoLoading) {
+          message.textContent = 'Aguarde a foto terminar de carregar.';
+          return;
+        }
+
+        registeredPackage = null;
+        registeredPackageActions.hidden = true;
+
         AppApi.createPackage({
           unit: form.unit.value.trim(),
-          identification: form.identification.value.trim()
-        }).then(function () {
-          message.textContent = 'Correspondencia registrada.';
+          identification: form.identification.value.trim(),
+          photo: photoData
+        }).then(function (packageItem) {
+          registeredPackage = packageItem;
+          registeredPackageActions.hidden = false;
+          AppToast.success('Correspondencia cadastrada com sucesso.');
+          message.textContent = 'Correspondencia registrada. Abrindo compartilhamento...';
           form.reset();
+          clearPhoto();
+          return AppPackageShare.sharePending(packageItem, message);
         }).catch(function () {
+          if (registeredPackage) {
+            return;
+          }
+
           message.textContent = 'Nao foi possivel registrar.';
         });
+      });
+
+      shareRegisteredPackage.addEventListener('click', function () {
+        if (!registeredPackage) {
+          return;
+        }
+
+        AppPackageShare.sharePending(registeredPackage, document.getElementById('formMessage'));
       });
     }
   </script>

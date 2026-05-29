@@ -17,6 +17,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>
       <input id="search" type="search" placeholder="Pesquisar por unidade ou identificacao" autocomplete="off">
     </label>
+    <p id="deliveryMessage" class="delivery-message" role="status"></p>
 
     <section id="deliveryList" class="list" aria-live="polite"></section>
   </main>
@@ -39,6 +40,7 @@
 
   <script src="cordova.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/toast.js"></script>
   <script src="js/signature.js"></script>
   <script src="js/auth.js"></script>
   <script>
@@ -49,20 +51,436 @@
       var search = document.getElementById('search');
       var modal = document.getElementById('deliveryModal');
       var form = document.getElementById('deliveryForm');
+      var message = document.getElementById('deliveryMessage');
+      var cordovaReady = !window.cordova;
       var signature = SignaturePad.create(document.getElementById('signatureCanvas'));
 
-      function render() {
-        var term = search.value.toLowerCase();
-        var filtered = packages.filter(function (item) {
-          return item.status === 'pendente' && (item.unit + ' ' + item.identification).toLowerCase().indexOf(term) >= 0;
+      document.addEventListener('deviceready', function () {
+        cordovaReady = true;
+      }, false);
+
+      function searchableText(item) {
+        return [
+          item.unit,
+          item.unit_short,
+          item.identification,
+          AppApi.formatDate(item.received_at, true)
+        ].join(' ').toLowerCase();
+      }
+
+      function shareText(item) {
+        return [
+          'Correspondencia: ' + (item.unit || ''),
+          'Identificacao: ' + (item.identification || ''),
+          'Recebido em: ' + AppApi.formatDate(item.received_at, true),
+          'Status: Pendente',
+          'Jesus te ama'
+        ].join('\n');
+      }
+
+      var pdfMeasureContext = null;
+
+      function normalizePdfText(value) {
+        return String(value || '')
+          .replace(/[\u2018\u2019]/g, "'")
+          .replace(/[\u201c\u201d]/g, '"')
+          .replace(/[\u2013\u2014]/g, '-');
+      }
+
+      function pdfText(value) {
+        return normalizePdfText(value)
+          .replace(/[\\()]/g, '\\$&')
+          .replace(/[\r\n]+/g, ' ');
+      }
+
+      function pdfTextWidth(value, sizeFont) {
+        var text = String(value || '');
+
+        if (!pdfMeasureContext && typeof document !== 'undefined' && document.createElement) {
+          var canvas = document.createElement('canvas');
+          pdfMeasureContext = canvas.getContext ? canvas.getContext('2d') : null;
+        }
+
+        if (pdfMeasureContext) {
+          pdfMeasureContext.font = sizeFont + 'px Helvetica, Arial, sans-serif';
+          return pdfMeasureContext.measureText(text).width;
+        }
+
+        return text.length * sizeFont * 0.55;
+      }
+
+      function splitPdfWord(word, sizeFont, maxWidth) {
+        var pieces = [];
+        var piece = '';
+
+        for (var i = 0; i < word.length; i += 1) {
+          var candidate = piece + word.charAt(i);
+          if (piece && pdfTextWidth(candidate, sizeFont) > maxWidth) {
+            pieces.push(piece);
+            piece = word.charAt(i);
+          } else {
+            piece = candidate;
+          }
+        }
+
+        if (piece) {
+          pieces.push(piece);
+        }
+
+        return pieces.length ? pieces : [''];
+      }
+
+      function wrapPdfText(value, sizeFont, maxWidth) {
+        var lines = [];
+        var paragraphs = normalizePdfText(value).split(/\r\n|\r|\n/);
+
+        paragraphs.forEach(function (paragraph) {
+          var trimmed = paragraph.replace(/[ \t]+/g, ' ').trim();
+          var words = trimmed ? trimmed.split(' ') : [];
+          var current = '';
+
+          if (!words.length) {
+            lines.push('');
+            return;
+          }
+
+          words.forEach(function (word) {
+            splitPdfWord(word, sizeFont, maxWidth).forEach(function (part) {
+              var next = current ? current + ' ' + part : part;
+              if (current && pdfTextWidth(next, sizeFont) > maxWidth) {
+                lines.push(current);
+                current = part;
+                return;
+              }
+
+              current = next;
+            });
+          });
+
+          if (current) {
+            lines.push(current);
+          }
         });
-        list.innerHTML = filtered.map(function (item) {
-          return '<button class="package-card" type="button" data-id="' + item.id + '">' +
-            '<strong>' + AppApi.escape(item.unit) + ' - ' + AppApi.escape(item.unit_short || item.unit) + '</strong>' +
-            '<span>' + AppApi.escape(item.identification) + '</span>' +
-            '<small>' + AppApi.formatDate(item.received_at, false) + '</small>' +
-          '</button>';
-        }).join('');
+
+        return lines.length ? lines : [''];
+      }
+
+      function asciiBytes(value) {
+        var bytes = [];
+        for (var i = 0; i < value.length; i += 1) {
+          var code = value.charCodeAt(i);
+          bytes.push(code <= 255 ? code : 63);
+        }
+        return bytes;
+      }
+
+      function base64Bytes(base64) {
+        var raw = atob(base64);
+        var bytes = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i += 1) {
+          bytes[i] = raw.charCodeAt(i);
+        }
+        return bytes;
+      }
+
+      function jpegData(photo) {
+        var match = String(photo || '').match(/^data:image\/jpe?g;base64,(.+)$/i);
+        return match ? base64Bytes(match[1]) : null;
+      }
+
+      function imageSize(src) {
+        return new Promise(function (resolve) {
+          if (!src) {
+            resolve(null);
+            return;
+          }
+
+          var image = new Image();
+          image.onload = function () {
+            resolve({ width: image.naturalWidth || image.width, height: image.naturalHeight || image.height });
+          };
+          image.onerror = function () { resolve(null); };
+          image.src = src;
+        });
+      }
+
+      function createPdfFile(filename, pages, images) {
+        var pageCount = pages.length;
+        var pageObjectStart = 3;
+        var fontObject = pageObjectStart + pageCount;
+        var contentObjectStart = fontObject + 1;
+        var imageObjectStart = contentObjectStart + pageCount;
+        var xObjects = images.length ? ' /XObject << ' + images.map(function (asset, index) {
+          return '/' + asset.name + ' ' + (imageObjectStart + index) + ' 0 R';
+        }).join(' ') + ' >>' : '';
+        var kids = pages.map(function (_, index) {
+          return (pageObjectStart + index) + ' 0 R';
+        }).join(' ');
+        var objects = [
+          '<< /Type /Catalog /Pages 2 0 R >>',
+          '<< /Type /Pages /Kids [' + kids + '] /Count ' + pageCount + ' >>'
+        ];
+
+        pages.forEach(function (_, index) {
+          objects.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ' + fontObject + ' 0 R >>' + xObjects + ' >> /Contents ' + (contentObjectStart + index) + ' 0 R >>');
+        });
+
+        objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+
+        pages.forEach(function (pageContent) {
+          objects.push('<< /Length ' + asciiBytes(pageContent).length + ' >>\nstream\n' + pageContent + 'endstream');
+        });
+
+        images.forEach(function (asset) {
+          objects.push({
+            header: '<< /Type /XObject /Subtype /Image /Width ' + asset.width + ' /Height ' + asset.height + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + asset.data.length + ' >>\nstream\n',
+            data: asset.data,
+            footer: '\nendstream'
+          });
+        });
+
+        var chunks = [new Uint8Array(asciiBytes('%PDF-1.4\n'))];
+        var offsets = [0];
+        var length = chunks[0].length;
+
+        objects.forEach(function (object, index) {
+          offsets.push(length);
+          var start = new Uint8Array(asciiBytes((index + 1) + ' 0 obj\n'));
+          chunks.push(start);
+          length += start.length;
+
+          if (typeof object === 'string') {
+            var body = new Uint8Array(asciiBytes(object + '\nendobj\n'));
+            chunks.push(body);
+            length += body.length;
+            return;
+          }
+
+          var header = new Uint8Array(asciiBytes(object.header));
+          var footer = new Uint8Array(asciiBytes(object.footer + '\nendobj\n'));
+          chunks.push(header, object.data, footer);
+          length += header.length + object.data.length + footer.length;
+        });
+
+        var xrefOffset = length;
+        var xref = 'xref\n0 ' + (objects.length + 1) + '\n0000000000 65535 f \n';
+        offsets.slice(1).forEach(function (offset) {
+          xref += String(offset).padStart(10, '0') + ' 00000 n \n';
+        });
+        xref += 'trailer\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xrefOffset + '\n%%EOF';
+
+        var end = new Uint8Array(asciiBytes(xref));
+        chunks.push(end);
+        length += end.length;
+
+        var output = new Uint8Array(length);
+        var cursor = 0;
+        chunks.forEach(function (chunk) {
+          output.set(chunk, cursor);
+          cursor += chunk.length;
+        });
+
+        return new File([output], filename, {
+          type: 'application/pdf'
+        });
+      }
+
+      function buildPdfFile(item) {
+        return imageSize(item.photo).then(function (size) {
+          var imageBytes = jpegData(item.photo);
+          var hasImage = imageBytes && size;
+          var photoAsset = hasImage ? {
+            name: 'Im1',
+            width: size.width,
+            height: size.height,
+            data: imageBytes
+          } : null;
+          var images = photoAsset ? [photoAsset] : [];
+          var y = 790;
+          var pages = [''];
+
+          function addContent(value) {
+            pages[pages.length - 1] += value;
+          }
+
+          function addPage() {
+            pages.push('');
+            y = 790;
+          }
+
+          function ensureSpace(height) {
+            if (y - height < 72) {
+              addPage();
+            }
+          }
+
+          function line(text, sizeFont, x, gap, maxWidth) {
+            var textX = typeof x === 'number' ? x : 44;
+            var width = maxWidth || (595 - textX - 44);
+            var lines = wrapPdfText(text, sizeFont, width);
+            var lineGap = Math.max(sizeFont + 4, 14);
+
+            lines.forEach(function (textLine, index) {
+              ensureSpace(lineGap);
+              addContent('BT /F1 ' + sizeFont + ' Tf ' + textX + ' ' + y + ' Td (' + pdfText(textLine) + ') Tj ET\n');
+              y -= index === lines.length - 1 ? (gap || 22) : lineGap;
+            });
+          }
+
+          function drawImage(asset, maxWidth, maxHeight, gapAfter) {
+            var ratio = Math.min(maxWidth / asset.width, maxHeight / asset.height, 1);
+            var width = Math.round(asset.width * ratio);
+            var height = Math.round(asset.height * ratio);
+
+            if (height > y - 72 && y < 790) {
+              addPage();
+            }
+
+            ratio = Math.min(maxWidth / asset.width, maxHeight / asset.height, Math.max(0, y - 72) / asset.height, 1);
+            if (!ratio || ratio <= 0) {
+              return;
+            }
+
+            width = Math.round(asset.width * ratio);
+            height = Math.round(asset.height * ratio);
+            y -= height;
+            addContent('q ' + width + ' 0 0 ' + height + ' 44 ' + y + ' cm /' + asset.name + ' Do Q\n');
+            y -= gapAfter || 28;
+          }
+
+          line('Correspondencia Pendente', 18, 44, 30);
+          line('Unidade: ' + (item.unit || ''), 12, 44);
+          line('Identificacao: ' + (item.identification || ''), 12, 44);
+          line('Recebido em: ' + AppApi.formatDate(item.received_at, true), 12, 44);
+          line('Status: Pendente', 12, 44, 30);
+
+          if (photoAsset) {
+            if (Math.round(photoAsset.height * Math.min(500 / photoAsset.width, 360 / photoAsset.height, 1)) + 42 > y - 72 && y < 790) {
+              addPage();
+            }
+            line('Foto da correspondencia', 12, 44, 20);
+            drawImage(photoAsset, 500, 360, 24);
+          }
+
+          pages = pages.map(function (content) {
+            return content + 'BT /F1 11 Tf 430 42 Td (Jesus te ama) Tj ET\n';
+          });
+
+          return createPdfFile('correspondencia-pendente-' + item.id + '.pdf', pages, images);
+        });
+      }
+
+      function fileToBase64(file) {
+        return new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function () {
+            var result = String(reader.result || '');
+            resolve(result.indexOf(',') >= 0 ? result.split(',')[1] : result);
+          };
+          reader.onerror = function () {
+            reject(reader.error || new Error('Nao foi possivel ler o PDF.'));
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function waitForCordovaReady() {
+        if (!window.cordova || cordovaReady) {
+          return Promise.resolve();
+        }
+
+        return new Promise(function (resolve) {
+          var resolved = false;
+          function done() {
+            if (resolved) return;
+            resolved = true;
+            cordovaReady = true;
+            resolve();
+          }
+
+          document.addEventListener('deviceready', done, false);
+          setTimeout(done, 3000);
+        });
+      }
+
+      function nativeErrorMessage(error) {
+        if (!error) return 'erro desconhecido';
+        if (typeof error === 'string') return error;
+        if (error.message) return error.message;
+        try {
+          return JSON.stringify(error);
+        } catch (jsonError) {
+          return String(error);
+        }
+      }
+
+      function sharePdf(item) {
+        var text = shareText(item);
+        message.textContent = 'Gerando PDF...';
+
+        return buildPdfFile(item).then(function (file) {
+          return waitForCordovaReady().then(function () {
+            return fileToBase64(file);
+          }).then(function (base64) {
+            return new Promise(function (resolve, reject) {
+              if (window.NativePdfShare && window.NativePdfShare.sharePdf) {
+                window.NativePdfShare.sharePdf({
+                  base64: base64,
+                  filename: file.name,
+                  title: 'Compartilhar correspondencia',
+                  subject: 'Correspondencia pendente ' + (item.unit || ''),
+                  message: text
+                }, resolve, reject);
+                return;
+              }
+
+              if (window.cordova && window.cordova.exec) {
+                window.cordova.exec(resolve, reject, 'NativePdfShare', 'sharePdf', [{
+                  base64: base64,
+                  filename: file.name,
+                  title: 'Compartilhar correspondencia',
+                  subject: 'Correspondencia pendente ' + (item.unit || ''),
+                  message: text
+                }]);
+                return;
+              }
+
+              reject('Compartilhamento nativo nao carregou.');
+            });
+          });
+        }).then(function () {
+          message.textContent = 'Escolha para onde enviar o PDF.';
+        }).catch(function (error) {
+          message.textContent = 'Erro ao abrir compartilhamento: ' + nativeErrorMessage(error);
+        });
+      }
+
+      function openDelivery(item) {
+        selectedId = item.id;
+        document.getElementById('selectedPackage').textContent = item.unit + ' - ' + item.identification;
+        form.reset();
+        signature.clear();
+        modal.hidden = false;
+        SignaturePad.resize(document.getElementById('signatureCanvas'), signature);
+      }
+
+      function render() {
+        var term = search.value.toLowerCase().trim();
+        var filtered = packages.filter(function (item) {
+          return item.status === 'pendente' && searchableText(item).indexOf(term) >= 0;
+        });
+        list.innerHTML = filtered.length ? filtered.map(function (item) {
+          return '<article class="package-card delivery-card" data-id="' + item.id + '">' +
+            '<div class="package-card-top"><strong>' + AppApi.escape(item.unit) + ' - ' + AppApi.escape(item.unit_short || item.unit) + '</strong><em>Jesus te ama</em></div>' +
+            '<span>Identificacao: ' + AppApi.escape(item.identification) + '</span>' +
+            '<small>Recebido em: ' + AppApi.formatDate(item.received_at, true) + '</small>' +
+            (item.photo ? '<img class="package-photo" src="' + AppApi.escape(item.photo) + '" alt="Foto da correspondencia">' : '') +
+            '<div class="delivery-card-actions">' +
+              '<button class="share-package" type="button" data-action="share" data-id="' + item.id + '">Compartilhar PDF</button>' +
+              '<button class="deliver-package" type="button" data-action="deliver" data-id="' + item.id + '">Entregar</button>' +
+            '</div>' +
+          '</article>';
+        }).join('') : '<p class="empty-state">Nenhuma correspondencia pendente.</p>';
       }
 
       function load() {
@@ -73,15 +491,20 @@
       }
 
       list.addEventListener('click', function (event) {
-        var card = event.target.closest('.package-card');
-        if (!card) return;
-        selectedId = card.dataset.id;
-        var item = packages.find(function (entry) { return String(entry.id) === String(selectedId); });
-        document.getElementById('selectedPackage').textContent = item.unit + ' - ' + item.identification;
-        form.reset();
-        signature.clear();
-        modal.hidden = false;
-        SignaturePad.resize(document.getElementById('signatureCanvas'), signature);
+        var button = event.target.closest('button[data-action]');
+        if (!button) return;
+
+        var item = packages.find(function (entry) {
+          return String(entry.id) === String(button.dataset.id);
+        });
+        if (!item) return;
+
+        if (button.dataset.action === 'share') {
+          sharePdf(item);
+          return;
+        }
+
+        openDelivery(item);
       });
 
       document.querySelector('.modal-close').addEventListener('click', function () {
@@ -100,6 +523,7 @@
           signature: signature.toDataURL()
         }).then(function () {
           modal.hidden = true;
+          AppToast.success('Correspondencia entregue com sucesso.');
           load();
         });
       });

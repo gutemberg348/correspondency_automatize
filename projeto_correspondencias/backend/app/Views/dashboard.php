@@ -53,7 +53,7 @@ require __DIR__ . '/layouts/header.php';
         </div>
       </div>
       <form id="adminPackageForm" class="admin-form">
-        <input name="unit" placeholder="Unidade" required>
+        <input name="unit" placeholder="Unidade (opcional)">
         <input name="identification" placeholder="Identificacao" required>
         <button type="submit">Registrar</button>
       </form>
@@ -110,6 +110,7 @@ require __DIR__ . '/layouts/header.php';
             <tr>
               <th>Usuario</th>
               <th>Dispositivo</th>
+              <th>Telefone</th>
               <th>Plataforma</th>
               <th>Ultima tentativa</th>
               <th>Status</th>

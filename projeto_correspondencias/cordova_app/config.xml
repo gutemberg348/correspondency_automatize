@@ -9,7 +9,10 @@
   <allow-navigation href="https://*/*" />
   <allow-intent href="http://*/*" />
   <allow-intent href="https://*/*" />
+  <allow-intent href="whatsapp:*" />
+  <plugin name="cordova-plugin-camera" spec="^8.0.0" />
   <plugin name="cordova-plugin-device" spec="^2.1.0" />
+  <plugin name="cordova-plugin-mobile-ocr" spec="^3.1.3" />
   <platform name="android">
     <icon density="ldpi" src="res/icon/android/ldpi.png" foreground="res/icon/android/ldpi-foreground.png" background="res/icon/android/ldpi-background.png" monochrome="res/icon/android/ldpi-monochrome.png" />
     <icon density="mdpi" src="res/icon/android/mdpi.png" foreground="res/icon/android/mdpi-foreground.png" background="res/icon/android/mdpi-background.png" monochrome="res/icon/android/mdpi-monochrome.png" />

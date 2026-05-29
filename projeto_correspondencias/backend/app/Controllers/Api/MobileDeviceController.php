@@ -39,6 +39,20 @@ class MobileDeviceController
         $this->json($device);
     }
 
+    public function update(string $id): void
+    {
+        AuthGuard::requireAdminSession();
+        $data = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
+        $device = (new MobileDevice())->updatePhone((int) $id, (string) ($data['phone'] ?? ''));
+
+        if (!$device) {
+            $this->json(['error' => 'Dispositivo nao encontrado'], 404);
+            return;
+        }
+
+        $this->json($device);
+    }
+
     public function delete(string $id): void
     {
         AuthGuard::requireAdminSession();

@@ -609,6 +609,14 @@ tr:hover td {
   gap: 8px;
 }
 
+.device-phone-edit {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  gap: 8px;
+  min-width: 250px;
+  align-items: center;
+}
+
 .password-edit small {
   display: block;
   max-width: 220px;
@@ -619,10 +627,15 @@ tr:hover td {
 
 .inline-edit input,
 .inline-edit select,
-.password-edit input {
+.password-edit input,
+.device-phone-edit input {
   min-height: 36px;
   padding: 0 10px;
   font-size: 13px;
+}
+
+.device-phone-edit input {
+  background: #fff;
 }
 
 .row-actions {

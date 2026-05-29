@@ -2,6 +2,8 @@
 
 namespace App\Core;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use PDO;
 
 class Database
@@ -27,6 +29,12 @@ class Database
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
+
+        $timezone = (string) ($config['app_timezone'] ?? 'America/Sao_Paulo');
+        date_default_timezone_set($timezone);
+
+        $offset = (new DateTimeImmutable('now', new DateTimeZone($timezone)))->format('P');
+        self::$connection->exec("SET time_zone = " . self::$connection->quote($offset));
 
         return self::$connection;
     }

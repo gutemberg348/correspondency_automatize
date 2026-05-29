@@ -4,6 +4,7 @@ namespace App\Controllers\Api;
 
 use App\Core\AuthGuard;
 use App\Models\Package;
+use InvalidArgumentException;
 
 class PackageController
 {
@@ -17,7 +18,14 @@ class PackageController
     {
         $actor = AuthGuard::requireAdminSessionOrMobileJwt();
         $data = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
-        $package = (new Package())->create($data, $actor);
+
+        try {
+            $package = (new Package())->create($data, $actor);
+        } catch (InvalidArgumentException $exception) {
+            $this->json(['error' => $exception->getMessage()], 422);
+            return;
+        }
+
         $this->json($package, 201);
     }
 

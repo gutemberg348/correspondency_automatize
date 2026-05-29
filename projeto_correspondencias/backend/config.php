@@ -29,6 +29,9 @@ $envBool = static function (string $key, bool $default = false): bool {
     return in_array(strtolower((string) $value), ['1', 'true', 'yes', 'on'], true);
 };
 
+$appTimezone = getenv('APP_TIMEZONE') ?: 'America/Sao_Paulo';
+date_default_timezone_set($appTimezone);
+
 return [
     'app_name' => 'Gestao de Correspondencias',
     'jwt_secret' => getenv('JWT_SECRET') ?: 'troque-este-segredo',
@@ -37,5 +40,6 @@ return [
     'db_user' => getenv('DB_USER') ?: 'root',
     'db_pass' => getenv('DB_PASS') ?: '',
     'db_charset' => getenv('DB_CHARSET') ?: 'utf8mb4',
+    'app_timezone' => $appTimezone,
     'admin_debug_errors' => $envBool('ADMIN_DEBUG_ERRORS'),
 ];

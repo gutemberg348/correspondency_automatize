@@ -8,14 +8,20 @@ use PDO;
 
 class MobileDevice
 {
+    private static bool $phoneColumnChecked = false;
+
     public function all(): array
     {
-        $stmt = Database::connection()->query(
+        $pdo = Database::connection();
+        $this->ensurePhoneColumn($pdo);
+
+        $stmt = $pdo->query(
             "SELECT d.id,
                     d.mobile_user_id,
                     mu.name AS user_name,
                     mu.username,
                     d.device_label,
+                    d.phone,
                     d.platform,
                     d.model,
                     d.manufacturer,
@@ -86,6 +92,28 @@ class MobileDevice
         $stmt->execute([
             'id' => $id,
             'admin_id' => $adminId ?: null,
+        ]);
+
+        return $this->findPublic($id);
+    }
+
+    public function updatePhone(int $id, string $phone): ?array
+    {
+        $pdo = Database::connection();
+        $this->ensurePhoneColumn($pdo);
+
+        $phone = trim($phone);
+        $phone = $phone === '' ? null : substr($phone, 0, 30);
+
+        $stmt = $pdo->prepare(
+            "UPDATE mobile_user_devices
+             SET phone = :phone,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id"
+        );
+        $stmt->execute([
+            'id' => $id,
+            'phone' => $phone,
         ]);
 
         return $this->findPublic($id);
@@ -200,12 +228,16 @@ class MobileDevice
 
     private function findPublic(int $id): ?array
     {
-        $stmt = Database::connection()->prepare(
+        $pdo = Database::connection();
+        $this->ensurePhoneColumn($pdo);
+
+        $stmt = $pdo->prepare(
             "SELECT d.id,
                     d.mobile_user_id,
                     mu.name AS user_name,
                     mu.username,
                     d.device_label,
+                    d.phone,
                     d.platform,
                     d.model,
                     d.manufacturer,
@@ -224,6 +256,20 @@ class MobileDevice
         $device = $stmt->fetch();
 
         return $device ? $this->normalizePublicDevice($device) : null;
+    }
+
+    private function ensurePhoneColumn(PDO $pdo): void
+    {
+        if (self::$phoneColumnChecked) {
+            return;
+        }
+
+        $stmt = $pdo->query("SHOW COLUMNS FROM mobile_user_devices LIKE 'phone'");
+        if (!$stmt->fetch()) {
+            $pdo->exec('ALTER TABLE mobile_user_devices ADD phone VARCHAR(30) NULL AFTER device_label');
+        }
+
+        self::$phoneColumnChecked = true;
     }
 
     private function devicePayload(array $data): array
@@ -252,6 +298,7 @@ class MobileDevice
     {
         $device['id'] = (int) $device['id'];
         $device['mobile_user_id'] = (int) $device['mobile_user_id'];
+        $device['phone'] = (string) ($device['phone'] ?? '');
 
         return $device;
     }

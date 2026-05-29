@@ -31,6 +31,10 @@
         <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 20a22 22 0 1 1-2 26"/><path d="M16 20H6v-10"/><path d="M32 20v14l10 6"/></svg>
         <span>Historico</span>
       </a>
+      <a class="home-card" id="supportCard" href="https://wa.me/5515998026605" target="_blank" rel="noopener">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 10a22 22 0 0 0-19 33L10 54l11-3a22 22 0 1 0 11-41Z"/><path d="M24 23c1-2 3-2 4 0l2 4c1 1 0 2-1 3l-1 1c2 4 5 7 9 9l1-1c1-1 2-2 3-1l4 2c2 1 2 3 0 4-2 2-6 3-12 0-7-3-12-8-15-15-3-6-2-10 0-12Z"/></svg>
+        <span>Suporte</span>
+      </a>
     </nav>
 
     <p class="blessing">Jesus te ama!</p>
@@ -46,6 +50,14 @@
       }
       document.getElementById('logoutButton').addEventListener('click', function () {
         AppAuth.logout();
+      });
+      document.getElementById('supportCard').addEventListener('click', function (event) {
+        var url = 'https://wa.me/5515998026605';
+
+        if (window.cordova && navigator.app && navigator.app.loadUrl) {
+          event.preventDefault();
+          navigator.app.loadUrl(url, { openExternal: true });
+        }
       });
       AppApi.listPackages().then(function (items) {
         document.getElementById('pendingCount').textContent = items.filter(function (item) {

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    id="br.com.condominio.nativepdfshare"
+    version="1.0.0">
+  <name>NativePdfShare</name>
+  <description>Compartilha comprovantes PDF usando o menu nativo do Android.</description>
+  <license>MIT</license>
+
+  <js-module src="www/native-pdf-share.js" name="NativePdfShare">
+    <clobbers target="NativePdfShare" />
+  </js-module>
+
+  <platform name="android">
+    <config-file target="res/xml/config.xml" parent="/*">
+      <feature name="NativePdfShare">
+        <param name="android-package" value="br.com.condominio.nativepdfshare.NativePdfShare" />
+      </feature>
+    </config-file>
+
+    <source-file src="src/android/NativePdfShare.java" target-dir="src/br/com/condominio/nativepdfshare" />
+  </platform>
+</plugin>

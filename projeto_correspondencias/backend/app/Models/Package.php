@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Core\Database;
+use InvalidArgumentException;
 use PDO;
 use Throwable;
 
@@ -22,6 +23,7 @@ class Package
         $unit = trim((string) ($data['unit'] ?? ''));
         $unitShort = trim((string) ($data['unit_short'] ?? ''));
         $identification = trim((string) ($data['identification'] ?? ''));
+        $photo = $this->photoData($data['photo'] ?? '');
 
         if ($unitShort === '') {
             $unitShort = preg_replace('/^Unidade\s+/i', '', $unit);
@@ -38,14 +40,15 @@ class Package
 
             $stmt = $pdo->prepare(
                 'INSERT INTO packages
-                    (unit, unit_short, identification, status, received_at, created_by_admin_id, created_by_mobile_user_id)
+                    (unit, unit_short, identification, photo_data, status, received_at, created_by_admin_id, created_by_mobile_user_id)
                  VALUES
-                    (:unit, :unit_short, :identification, "pendente", NOW(), :created_by_admin_id, :created_by_mobile_user_id)'
+                    (:unit, :unit_short, :identification, :photo_data, "pendente", NOW(), :created_by_admin_id, :created_by_mobile_user_id)'
             );
             $stmt->execute([
                 'unit' => $unit,
                 'unit_short' => $unitShort,
                 'identification' => $identification,
+                'photo_data' => $photo,
                 'created_by_admin_id' => $adminId,
                 'created_by_mobile_user_id' => $mobileUserId,
             ]);
@@ -139,6 +142,7 @@ class Package
                     p.unit,
                     p.unit_short,
                     p.identification,
+                    p.photo_data AS photo,
                     p.status,
                     DATE_FORMAT(p.received_at, '%Y-%m-%dT%H:%i:%s') AS received_at,
                     d.receiver,
@@ -147,6 +151,25 @@ class Package
                 FROM packages p
                 LEFT JOIN package_deliveries d ON d.package_id = p.id
                 WHERE p.deleted_at IS NULL";
+    }
+
+    private function photoData($value): ?string
+    {
+        $photo = trim((string) $value);
+
+        if ($photo === '') {
+            return null;
+        }
+
+        if (strlen($photo) > 6000000) {
+            throw new InvalidArgumentException('Foto muito grande. Tire uma foto menor e tente novamente.');
+        }
+
+        if (!preg_match('#^data:image/(png|jpe?g|webp);base64,#i', $photo)) {
+            throw new InvalidArgumentException('Foto invalida.');
+        }
+
+        return $photo;
     }
 
     private function visibilityScope(array $actor): array

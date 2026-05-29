@@ -47,6 +47,7 @@ $router->delete('/api/mobile-users/{id}', [MobileUserController::class, 'delete'
 
 // --- ROTAS DE DISPOSITIVOS ---
 $router->get('/api/mobile-devices', [MobileDeviceController::class, 'index']);
+$router->post('/api/mobile-devices/{id}', [MobileDeviceController::class, 'update']);
 $router->post('/api/mobile-devices/{id}/approve', [MobileDeviceController::class, 'approve']);
 $router->post('/api/mobile-devices/{id}/block', [MobileDeviceController::class, 'block']);
 $router->delete('/api/mobile-devices/{id}', [MobileDeviceController::class, 'delete']);

@@ -104,10 +104,12 @@
   }
 
   function createPackage(data) {
+    var unit = String(data.unit || '').trim();
     var payload = {
-      unit: data.unit,
-      unit_short: data.unit.replace(/^Unidade\s+/i, '').split(/[,\s-]+/)[0] || data.unit,
-      identification: data.identification
+      unit: unit,
+      unit_short: unit.replace(/^Unidade\s+/i, '').split(/[,\s-]+/)[0] || unit,
+      identification: data.identification,
+      photo: data.photo || ''
     };
     return request('/packages', { method: 'POST', body: JSON.stringify(payload) });
   }
@@ -127,6 +129,12 @@
 
   function formatDate(value, withTime) {
     if (!value) return '';
+    var match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+    if (match) {
+      var formattedValue = match[3] + '/' + match[2] + '/' + match[1];
+      return withTime ? formattedValue + ' as ' + match[4] + ':' + match[5] : formattedValue;
+    }
+
     var date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     var formatted = date.toLocaleDateString('pt-BR');

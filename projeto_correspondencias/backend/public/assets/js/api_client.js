@@ -52,6 +52,9 @@
     listMobileDevices: function () {
       return json('api/mobile-devices');
     },
+    updateMobileDevice: function (id, data) {
+      return json('api/mobile-devices/' + encodeURIComponent(id), { method: 'POST', body: JSON.stringify(data) });
+    },
     approveMobileDevice: function (id) {
       return json('api/mobile-devices/' + encodeURIComponent(id) + '/approve', { method: 'POST', body: JSON.stringify({}) });
     },
